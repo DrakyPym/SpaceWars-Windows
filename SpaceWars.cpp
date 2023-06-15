@@ -24,7 +24,7 @@
 #define IZQUIERDA 75
 #define DERECHA 77
 #define ESPACIO 32
-
+#define ENTER 13
 // COLORES
 
 #define verde 10
@@ -732,6 +732,9 @@ public:
 	void choque(struct NAVE &N);
 	void choqueB(struct NAVE &N);
 	void choqueO(struct OVNI &N);
+	bool colision(const ASTEROIDE &ast);
+	int X(){return x;}
+	int Y(){return y;}
 };
 
 ASTEROIDE::ASTEROIDE(int _x, int _y)
@@ -752,7 +755,7 @@ void ASTEROIDE::Mover()
 {
 	int ancho = Obtener_Ancho_Ventana();
 	int alto = Obtener_Altura_Ventana();
-
+ 
 	int limiteIzquierdo = 7;
 	int limiteDerecho = ancho - 4; // Posici�n del l�mite derecho donde terminan los ladrillos
 
@@ -778,8 +781,9 @@ void ASTEROIDE::Mover()
 
 void ASTEROIDE::choque(struct NAVE &N)
 {
-	if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y <= N.Y() + 2)
+	if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y < N.Y() + 2)
 	{
+	
 		N.Cor();
 		N.Pintar();
 		N.Pintar_Corazones();
@@ -879,7 +883,6 @@ void Colorear1(int a)
 
 void Pintar_Limites()
 {
-
 	int ancho = Obtener_Ancho_Ventana();
 	int alto = Obtener_Altura_Ventana();
 
@@ -914,7 +917,8 @@ bool disparoPresionado = false;
 bool disparoPermitido = true;
 int numdisparos = 0;
 vector<BALA *> balas;
-vector<ASTEROIDE> asteroidesV;
+list<ASTEROIDE*> asteroidesV;
+list<ASTEROIDE*>::iterator it;
 sem_t semaforoBalas;
 time_t ultimoTiempoRegeneracion = time(nullptr);
 pthread_t tBala;
@@ -930,7 +934,6 @@ void moverBala()
 	if (disparoPresionado && disparoPermitido && balas.size() < 30 && numdisparos < 30)
 	{
 		balas.push_back(new BALA(nave.X() + 5, nave.Y() + 2));
-
 		disparoPermitido = false;
 	}
 
@@ -1014,7 +1017,6 @@ void regenerarBalas()
 		if (tiempoTranscurrido >= 5)
 		{
 			sem_wait(&semaforoBalas); // Bloquear el sem�foro
-
 			balas.clear();
 
 			sem_post(&semaforoBalas); // Desbloquear el sem�foro
@@ -1082,12 +1084,13 @@ void reiniciarJuego()
 {
 	disparoPermitido = true;
 	juegoActivo = true;
-	Musica(0);
 	balas.clear();
 	nave.setVidas(3);
-	nave.Pintar_Corazones();
+	asteroidesV.clear();
 	ovni.setVidas(3);
+	Musica(0);
 	nave.Pintar_Corazones();
+	ovni.Pintar_Corazones();
 }
 
 void juego_N()
@@ -1108,20 +1111,49 @@ void juego_N()
 	reiniciarJuego();
 	for (int i = 0; i < cantidadAsteroides; i++)
 	{
-		x1 = 2 + rand() % (ancho / 2 - 6);
+		x1 = 3 + rand() % (ancho / 2 - 6);
 		y1 = 4 + rand() % (alto - 10);
-		ASTEROIDE ast(x1, y1);
-		asteroidesV.push_back(ast);
-		ast.choque(nave);
+		asteroidesV.push_back(new ASTEROIDE(x1,y1));
+	
 	}
+	
+		for (it = asteroidesV.begin(); it != asteroidesV.end(); ) {
+    		for (int i = 0; i < balas.size(); i++) {
+        		if ((*it)->Y() == balas[i]->Y() && (*it)->X() == balas[i]->X()) {
+           
+		            Posicionar1(balas[i]->X(), balas[i]->Y());
+		            printf(" ");
+		            delete balas[i];
+		            balas.erase(balas.begin() + i);
+		            i--;
+		            
+		            // Crear nuevo asteroide
+		           asteroidesV.push_back(new ASTEROIDE((3 + rand() % (ancho / 2 - 6)), (4 + rand() % (alto - 10))));
+		            
+		            // Eliminar asteroide
+		            Posicionar1((*it)->X(), (*it)->Y());
+		            printf(" ");
+		            delete (*it);
+		            it = asteroidesV.erase(it);
+		            
+		            
+        }
+    }
+    
+    // Avanzar al siguiente asteroide en el bucle externo
+    if (it != asteroidesV.end()) {
+        ++it;
+    }
+}
 	Musica(0);
 	while (!Fin_Del_Juego)
 	{
-		for (int i = 0; i < asteroidesV.size(); i++)
-		{
-			asteroidesV[i].Mover();
-			asteroidesV[i].choque(nave);
+		for (it= asteroidesV.begin();it!=asteroidesV.end();it++){
+		
+			(*it)->Mover();
+			(*it)->choque(nave);
 		}
+			
 
 		if (_kbhit())
 		{
@@ -1138,6 +1170,7 @@ void juego_N()
 			disparoPresionado = false;
 			disparoPermitido = true;
 		}
+		
 
 		regenerarBalas();
 		if (nave.getVidas() == 0)
@@ -1151,11 +1184,10 @@ void juego_N()
 		}
 
 		sem_wait(&semaforoBalas);
-
 		moverBala();
 		nave.Mover();
 		sem_post(&semaforoBalas);
-		Sleep(8);
+		Sleep(15);
 	}
 	Musica(2);
 	Mover_Volver();
@@ -1180,19 +1212,19 @@ void juego_O()
 	reiniciarJuego();
 	for (int i = 0; i < cantidadAsteroides; i++)
 	{
-		x1 = 2 + rand() % (ancho / 2 - 6);
+		x1 = 3 + rand() % (ancho / 2 - 6);
 		y1 = 4 + rand() % (alto - 10);
-		ASTEROIDE ast(x1, y1);
-		asteroidesV.push_back(ast);
-		ast.choqueO(ovni);
+	//	ASTEROIDE ast(x1, y1);
+		asteroidesV.push_back(new ASTEROIDE(x1,y1));
+	
 	}
 	Musica(0);
 	while (!Fin_Del_Juego)
 	{
-		for (int i = 0; i < asteroidesV.size(); i++)
-		{
-			asteroidesV[i].Mover();
-			asteroidesV[i].choqueO(ovni);
+			for (it= asteroidesV.begin();it!=asteroidesV.end();it++){
+		
+			(*it)->Mover();
+			(*it)->choqueO(ovni);
 		}
 
 		if (_kbhit())
@@ -1571,7 +1603,7 @@ void Mover_Volver()
 				selec = 0;
 			}
 
-			if (tecla == ESPACIO)
+			if (tecla == ENTER)
 			{ // Verificar si se presion� Espacio
 				espacioPresionado = true;
 			}

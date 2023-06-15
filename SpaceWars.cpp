@@ -1,5 +1,5 @@
 // Los Iluminati   4CV1
-//#pragma comment(linker, "/manifestdependency:\"type='win32' name='SpaceWars.exe' version='1.0.0.0' processorArchitecture='*' publicKeyToken='0000000000000000' language='*'\"")
+// #pragma comment(linker, "/manifestdependency:\"type='win32' name='SpaceWars.exe' version='1.0.0.0' processorArchitecture='*' publicKeyToken='0000000000000000' language='*'\"")
 
 #include <iostream>
 #include <stdio.h>
@@ -713,7 +713,7 @@ void OVNI::vivir()
 	}
 }
 
-OVNI ovni(10, alto / 2, corazones);
+OVNI ovni(ancho, alto / 2, corazones);
 //..............................................................
 
 class ASTEROIDE
@@ -726,11 +726,7 @@ public:
 	ASTEROIDE(int _x, int _y);
 	void Pintar();
 	void Mover();
-	void Mover2();
-	void Mover3();
-	void Mover4();
 	void choque(struct NAVE &N);
-	void choqueB(struct NAVE &N);
 	void choqueO(struct OVNI &N);
 };
 
@@ -1099,6 +1095,8 @@ void reiniciarJuego()
 void juego_N()
 {
 	sem_init(&semaforoBalas, 0, 1);
+	alto = Obtener_Altura_Ventana();
+	nave.Posicionar(10, alto / 2);
 	bool Fin_Del_Juego = false;
 	int x1 = 0, y1 = 0, x2;
 	Colorear1(verde);
@@ -1169,6 +1167,9 @@ void juego_N()
 }
 void juego_O()
 {
+	ancho = Obtener_Ancho_Ventana();
+	alto = Obtener_Altura_Ventana();
+	ovni.Posicionar(ancho - 10, alto / 2);
 	sem_init(&semaforoBalas, 0, 1);
 	bool Fin_Del_Juego = false;
 	int x1 = 0, y1 = 0, x2;

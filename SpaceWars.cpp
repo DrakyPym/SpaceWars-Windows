@@ -713,7 +713,7 @@ void OVNI::vivir()
 	}
 }
 
-OVNI ovni(ancho, alto / 2, corazones);
+OVNI ovni(Obtener_Ancho_Ventana() - 10, alto / 2, corazones);
 //..............................................................
 
 class ASTEROIDE
@@ -726,7 +726,11 @@ public:
 	ASTEROIDE(int _x, int _y);
 	void Pintar();
 	void Mover();
+	void Mover2();
+	void Mover3();
+	void Mover4();
 	void choque(struct NAVE &N);
+	void choqueB(struct NAVE &N);
 	void choqueO(struct OVNI &N);
 };
 
@@ -774,31 +778,25 @@ void ASTEROIDE::Mover()
 
 void ASTEROIDE::choque(struct NAVE &N)
 {
-	if (kbhit())
+	if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y <= N.Y() + 2)
 	{
-		if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y <= N.Y() + 2)
-		{
-			N.Cor();
-			N.Pintar();
-			N.Pintar_Corazones();
-			x = rand() % 71 + 4;
-			y = 4;
-		}
+		N.Cor();
+		N.Pintar();
+		N.Pintar_Corazones();
+		x = rand() % 71 + 4;
+		y = 4;
 	}
 }
 
 void ASTEROIDE::choqueO(struct OVNI &N)
 {
-	if (kbhit())
+	if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y <= N.Y() + 2)
 	{
-		if (x >= N.X() && x < N.X() + 5 && y >= N.Y() && y <= N.Y() + 2)
-		{
-			N.Cor();
-			N.Pintar();
-			N.Pintar_Corazones();
-			x = rand() % 71 + 4;
-			y = 4;
-		}
+		N.Cor();
+		N.Pintar();
+		N.Pintar_Corazones();
+		x = rand() % 71 + 4;
+		y = 4;
 	}
 }
 class BALA
@@ -854,7 +852,7 @@ void BALA::Pintar()
 	Posicionar(x, y);
 
 	Colorear1(azul);
-	printf("%c", 175);
+	printf("%c", 64);
 }
 
 bool BALA::fuera()
@@ -959,15 +957,15 @@ void moverBalaO()
 
 	if (disparoPresionado && disparoPermitido && balas.size() < 30 && numdisparos < 30)
 	{
-		balas.push_back(new BALA(ovni.X() + 5, ovni.Y() + 2));
+		balas.push_back(new BALA(ovni.X() - 1, ovni.Y() + 2));
 
 		disparoPermitido = false;
 	}
 
 	for (int i = 0; i < balas.size(); i++)
 	{
-		balas[i]->mover();
-		if (balas[i]->fuera())
+		balas[i]->MoverOvni();
+		if (balas[i]->fueraOvni())
 		{
 			Posicionar1(balas[i]->X(), balas[i]->Y());
 			printf(" ");
@@ -1053,7 +1051,7 @@ void regenerarBalasO()
 
 	for (int i = 0; i < balas.size(); i++)
 	{
-		balas[i]->mover();
+		balas[i]->MoverOvni();
 	}
 
 	if (balas.size() < 30 && numdisparos >= 30)
@@ -1073,7 +1071,7 @@ void regenerarBalasO()
 	{
 		if (disparoPresionado && disparoPermitido)
 		{
-			balas.push_back(new BALA(ovni.X() + 5, ovni.Y() + 2));
+			balas.push_back(new BALA(ovni.X() - 1, ovni.Y() + 2));
 			disparoPermitido = false;
 			numdisparos++;
 		}
@@ -1094,9 +1092,8 @@ void reiniciarJuego()
 
 void juego_N()
 {
+	nave.Posicionar(10, Obtener_Altura_Ventana() / 2);
 	sem_init(&semaforoBalas, 0, 1);
-	alto = Obtener_Altura_Ventana();
-	nave.Posicionar(10, alto / 2);
 	bool Fin_Del_Juego = false;
 	int x1 = 0, y1 = 0, x2;
 	Colorear1(verde);
@@ -1106,7 +1103,7 @@ void juego_N()
 
 	nave.Pintar_Corazones();
 
-	int cantidadAsteroides = 6;
+	int cantidadAsteroides = 4;
 	pthread_create(&tBala, nullptr, moverBalaHilo, nullptr);
 	reiniciarJuego();
 	for (int i = 0; i < cantidadAsteroides; i++)
@@ -1167,9 +1164,7 @@ void juego_N()
 }
 void juego_O()
 {
-	ancho = Obtener_Ancho_Ventana();
-	alto = Obtener_Altura_Ventana();
-	ovni.Posicionar(ancho - 10, alto / 2);
+	ovni.Posicionar(Obtener_Ancho_Ventana() - 10, Obtener_Altura_Ventana() / 2);
 	sem_init(&semaforoBalas, 0, 1);
 	bool Fin_Del_Juego = false;
 	int x1 = 0, y1 = 0, x2;
@@ -1550,6 +1545,7 @@ void Boton_Volver(char color)
 //---------------------------------------------------------------------------------------
 void Mover_Volver()
 {
+	 std::cin.clear();        // Limpiar el estado del búfer de entrada
 	int selec = 0;
 	char activo = verde, inactivo = blanco;
 	OcultarCursor();
@@ -1601,6 +1597,7 @@ void Mover_Volver()
 
 void Mover_Menu()
 {
+	std::cin.clear();        // Limpiar el estado del búfer de entrada
 	int selec = 0, choice = 0;
 	char activo = verde, inactivo = blanco;
 	OcultarCursor();
@@ -1684,6 +1681,7 @@ void Mover_Menu()
 
 void Menu_Volver()
 {
+	std::cin.clear();        // Limpiar el estado del búfer de entrada
 	bool game_over = false;
 
 	Maximizar_Ventana();
@@ -1699,6 +1697,7 @@ void Menu_Volver()
 
 void Menu_VolverWin()
 {
+	std::cin.clear();        // Limpiar el estado del búfer de entrada
 	bool game_over = false;
 
 	Maximizar_Ventana();

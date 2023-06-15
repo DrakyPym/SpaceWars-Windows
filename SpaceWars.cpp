@@ -12,7 +12,7 @@
 #include <ctime>
 #include <mmsystem.h> //multimedia
 #include <Windows.h>
-#include <ShellAPI.h>
+#include <wbemidl.h>
 // MEDIDAS DE LA CONSOLA
 #define color SetConsoleTextAttribute
 
@@ -63,7 +63,6 @@ void Musica(int estadoDelJuego);
 void sonidoDanio();
 void sonidoDisparo();
 void sonidosDetener();
-void solicitaAdministrador();
 // FIN FUNCIONES
 //----audio
 void sonidosDetener()
@@ -1648,10 +1647,8 @@ void Menu()
 	}
 }
 
-
 int main()
 {
-	solicitaAdministrador();
 	Menu();
 	return 0;
 }

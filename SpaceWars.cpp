@@ -1,4 +1,6 @@
 // Los Iluminati   4CV1
+//#pragma comment(linker, "/manifestdependency:\"type='win32' name='SpaceWars.exe' version='1.0.0.0' processorArchitecture='*' publicKeyToken='0000000000000000' language='*'\"")
+
 #include <iostream>
 #include <stdio.h>
 #include <windows.h> //PERMITE POSCIONAR LOS CARACTERES, CAMBIARLES EL COLOR
@@ -12,7 +14,7 @@
 #include <ctime>
 #include <mmsystem.h> //multimedia
 #include <Windows.h>
-#include <wbemidl.h>
+#include <ShellAPI.h>
 // MEDIDAS DE LA CONSOLA
 #define color SetConsoleTextAttribute
 
@@ -280,8 +282,6 @@ void NAVE::Mover()
 			y++;
 		Pintar();
 	}
-
-	//	Pintar_Corazones();
 }
 
 void NAVE::Colorear(int a) // FUNCION PARA CAMBIAR DE COLOR LOS CARACTERES
@@ -369,6 +369,7 @@ void NAVE::morir()
 		Menu_Volver();
 	}
 }
+
 int NAVE::getVidas()
 {
 	return corazones;
@@ -459,19 +460,21 @@ private:
 
 public:
 	OVNI(int x, int y, int corazones);
+	void Cor()
+	{
+		corazones--;
+		sonidoDanio();
+	}
 	void Pintar();
 	void Borrar();
 	void Mover();
 	void Colorear(int a);
 	void Pintar_Corazones();
 	void morir();
+	void setVidas(int vidas);
 
+	int getVidas();
 	void vivir();
-	void Cor()
-	{
-		corazones--;
-		sonidoDanio();
-	}
 	int X()
 	{
 		return x;
@@ -479,6 +482,11 @@ public:
 	int Y()
 	{
 		return y;
+	}
+	void Posicionar(int inicialX, int inicialY)
+	{
+		x = inicialX;
+		y = inicialY;
 	}
 };
 
@@ -526,14 +534,11 @@ void OVNI::Borrar()
 
 void OVNI::Mover()
 {
-
 	int ancho = Obtener_Ancho_Ventana();
 	int alto = Obtener_Altura_Ventana();
+
 	if (kbhit())
 	{
-		char tecla = getch();
-
-		Borrar();
 		Borrar();
 		if ((GetAsyncKeyState(VK_LEFT) & 0x8000) && x > 4)
 			x -= 2;
@@ -543,10 +548,7 @@ void OVNI::Mover()
 			y--;
 		if ((GetAsyncKeyState(VK_DOWN) & 0x8000) && y < alto - 5)
 			y++;
-		if (tecla == 'e')
-			corazones--;
 		Pintar();
-		Pintar_Corazones();
 	}
 }
 
@@ -570,6 +572,7 @@ void OVNI::Pintar_Corazones()
 		printf("%c", 3);
 	}
 }
+
 void OVNI::morir()
 {
 	int a = rojo;
@@ -633,6 +636,16 @@ void OVNI::morir()
 		system("cls");
 		Menu_Volver();
 	}
+}
+
+int OVNI::getVidas()
+{
+	return corazones;
+}
+
+void OVNI::setVidas(int vidas)
+{
+	corazones = vidas;
 }
 
 void OVNI::vivir()
@@ -699,6 +712,8 @@ void OVNI::vivir()
 		Menu_Volver();
 	}
 }
+
+OVNI ovni(10, alto / 2, corazones);
 //..............................................................
 
 class ASTEROIDE
@@ -939,9 +954,43 @@ void moverBala()
 	}
 }
 
+void moverBalaO()
+{
+	if (!juegoActivo)
+	{
+		return;
+	}
+
+	if (disparoPresionado && disparoPermitido && balas.size() < 30 && numdisparos < 30)
+	{
+		balas.push_back(new BALA(ovni.X() + 5, ovni.Y() + 2));
+
+		disparoPermitido = false;
+	}
+
+	for (int i = 0; i < balas.size(); i++)
+	{
+		balas[i]->mover();
+		if (balas[i]->fuera())
+		{
+			Posicionar1(balas[i]->X(), balas[i]->Y());
+			printf(" ");
+			delete balas[i];
+			balas.erase(balas.begin() + i);
+			i--;
+		}
+	}
+}
+
 void *moverBalaHilo(void *data)
 {
 	moverBala();
+	return nullptr;
+}
+
+void *moverBalaHiloO(void *data)
+{
+	moverBalaO();
 	return nullptr;
 }
 
@@ -989,6 +1038,52 @@ void regenerarBalas()
 		}
 	}
 }
+
+void regenerarBalasO()
+{
+	time_t tiempoActual = time(nullptr);
+	double tiempoTranscurrido = difftime(tiempoActual, ultimoTiempoRegeneracion);
+	if (!juegoActivo)
+	{
+		return;
+	}
+	if (tiempoTranscurrido >= 5)
+	{
+		ultimoTiempoRegeneracion = tiempoActual;
+		disparoPermitido = true;
+		disparoPresionado = false;
+		numdisparos = 0;
+	}
+
+	for (int i = 0; i < balas.size(); i++)
+	{
+		balas[i]->mover();
+	}
+
+	if (balas.size() < 30 && numdisparos >= 30)
+	{
+		if (tiempoTranscurrido >= 5)
+		{
+			sem_wait(&semaforoBalas); // Bloquear el sem�foro
+
+			balas.clear();
+
+			sem_post(&semaforoBalas); // Desbloquear el sem�foro
+		}
+		return;
+	}
+
+	if (balas.size() < 30 && numdisparos < 30)
+	{
+		if (disparoPresionado && disparoPermitido)
+		{
+			balas.push_back(new BALA(ovni.X() + 5, ovni.Y() + 2));
+			disparoPermitido = false;
+			numdisparos++;
+		}
+	}
+}
+
 void reiniciarJuego()
 {
 	disparoPermitido = true;
@@ -997,13 +1092,15 @@ void reiniciarJuego()
 	balas.clear();
 	nave.setVidas(3);
 	nave.Pintar_Corazones();
+	ovni.setVidas(3);
+	nave.Pintar_Corazones();
 }
 
 void juego_N()
 {
 	sem_init(&semaforoBalas, 0, 1);
 	bool Fin_Del_Juego = false;
-	int x = 50, y = 20, a = 0, b = 0, x1 = 0, y1 = 0, x2;
+	int x1 = 0, y1 = 0, x2;
 	Colorear1(verde);
 	Pintar_Limites();
 	OcultarCursor();
@@ -1072,91 +1169,74 @@ void juego_N()
 }
 void juego_O()
 {
+	sem_init(&semaforoBalas, 0, 1);
 	bool Fin_Del_Juego = false;
-	int x = 50, y = 20, a = 0, b = 0, corazones = 3, x1 = 0, y1 = 0, x2;
-	int ancho = Obtener_Ancho_Ventana();
-	int alto = Obtener_Altura_Ventana();
+	int x1 = 0, y1 = 0, x2;
 	Colorear1(verde);
 	Pintar_Limites();
 	OcultarCursor();
-	OVNI ovni(ancho - 10, alto / 2, corazones);
 	ovni.Pintar();
 
-	vector<ASTEROIDE> asteroidesV;
-	vector<ASTEROIDE> asteroidesH;
-	vector<ASTEROIDE> asteroidesHD;
-	vector<ASTEROIDE> asteroidesV2;
-	list<BALA *> B;
-	list<BALA *>::iterator it;
-	int cantidadAsteroides = 4;
-	for (int j = 0; j < 2; j++)
+	ovni.Pintar_Corazones();
+
+	int cantidadAsteroides = 6;
+	pthread_create(&tBala, nullptr, moverBalaHiloO, nullptr);
+	reiniciarJuego();
+	for (int i = 0; i < cantidadAsteroides; i++)
 	{
-
-		for (int i = 0; i < cantidadAsteroides; i++)
-		{
-			// Generar posici�n horizontal y vertical dentro de los l�mites de los ladrillos
-			x1 = rand() % (ancho / 2 - 6); // Rango ajustado para la mitad izquierda
-			y1 = 4 + rand() % (alto - 10);
-
-			ASTEROIDE ast(x1, y1), ast2(x1 + ancho / 2, y1);
-			asteroidesV.push_back(ast);
-			ast2.choqueO(ovni);
-			ast.choqueO(ovni);
-			asteroidesV2.push_back(ast2);
-		}
-
-		for (int i = 0; i < cantidadAsteroides; i++)
-		{
-			// Generar posici�n horizontal y vertical dentro de los l�mites de los ladrillos
-			x1 = ancho / 2 + rand() % (ancho / 4 - 6) + 3;
-			y1 = 4 + rand() % (alto - 10);
-
-			ASTEROIDE ast2(x1, y1);
-			asteroidesH.push_back(ast2);
-			ast2.choqueO(ovni);
-			ASTEROIDE ast3(ancho - 6, y1); // Valor m�ximo ajustado para evitar que aparezcan muy cerca del borde derecho
-			asteroidesHD.push_back(ast3);
-			ast3.choqueO(ovni);
-		}
-		// Sleep(20);
+		x1 = 2 + rand() % (ancho / 2 - 6);
+		y1 = 4 + rand() % (alto - 10);
+		ASTEROIDE ast(x1, y1);
+		asteroidesV.push_back(ast);
+		ast.choqueO(ovni);
 	}
 	Musica(0);
 	while (!Fin_Del_Juego)
 	{
-
 		for (int i = 0; i < asteroidesV.size(); i++)
 		{
 			asteroidesV[i].Mover();
 			asteroidesV[i].choqueO(ovni);
 		}
 
-		if (kbhit())
+		if (_kbhit())
 		{
-			char tecla = getch();
+			char tecla = _getch();
 			if (tecla == ' ')
 			{
 				sonidoDisparo();
-				B.push_back(new BALA(ovni.X() - 2, ovni.Y() + 2));
+				disparoPresionado = true;
+				numdisparos++;
 			}
 		}
-
-		for (it = B.begin(); it != B.end(); it++)
+		else
 		{
-			(*it)->MoverOvni();
-			if ((*it)->fueraOvni())
-			{
-				Posicionar1((*it)->X(), (*it)->Y());
-				printf(" ");
-				delete (*it);
-				it = B.erase(it);
-			}
+			disparoPresionado = false;
+			disparoPermitido = true;
 		}
 
-		ovni.morir();
+		regenerarBalasO();
+		if (ovni.getVidas() == 0)
+		{
+			system("cls");
+			Fin_Del_Juego = true;
+			ovni.morir();
+
+			juegoActivo = false;
+			Fin_Del_Juego = false;
+		}
+
+		sem_wait(&semaforoBalas);
+
+		moverBalaO();
 		ovni.Mover();
-		Sleep(30);
+		sem_post(&semaforoBalas);
+		Sleep(8);
 	}
 	Musica(2);
+	Mover_Volver();
+	pthread_join(tBala, nullptr);
+	sem_destroy(&semaforoBalas);
 }
 
 struct Coordenadas_Botones
